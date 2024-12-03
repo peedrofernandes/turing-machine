@@ -1,6 +1,6 @@
 import ErrorHandler from "../components/ErrorHandler";
 import criarMaquinaTuring from "../machine/criarMaquinaTuring";
-import { IEntradaMT, Transicao, isMovimento, isSimbolo } from "../machine/logic/MaquinaTuring";
+import { IEntradaMT, Movimento, Transicao, isMovimento, isSimbolo } from "../machine/logic/MaquinaTuring";
 
 import tapeProcessingVideo from "../../assets/videos/tape-processing.webm"
 import tapeAcceptingVideo from "../../assets/videos/tape-accepting.webm"
@@ -18,6 +18,14 @@ if (!formEstadosEspeciais) throw new Error("Formulário de estados especiais nã
 const botaoRemoverTransicao: HTMLButtonElement | null =
     document.querySelector("#remover-transicao")
 if (!botaoRemoverTransicao) throw new Error("Botão de remover transição não identificado.")
+
+const botaoLimparTransicoes: HTMLButtonElement | null =
+    document.querySelector("#limpar-transicoes")
+if (!botaoLimparTransicoes) throw new Error("Botão de limpar transições não identificado.")
+
+const botaoInserirArquivo: HTMLButtonElement | null =
+    document.querySelector("#inserir-arquivo")
+if (!botaoInserirArquivo) throw new Error("Botão de inserir arquivo não identificado.")
 
 const ulTransicoes: HTMLUListElement | null =
     document.querySelector("#transicoes");
@@ -153,8 +161,73 @@ formAddTransicao.addEventListener('submit', (event: SubmitEvent) => {
     }
 });
 
+botaoInserirArquivo.addEventListener("click", () => {
+    const input = document.createElement("input")
+    input.type = "file"
+    input.accept = ".txt"
+    
+    input.addEventListener("change", () => {
+        const selectedFile = input.files?.[0];
+
+        if (selectedFile && selectedFile.name.endsWith(".txt")) {
+            const file: File = selectedFile;
+            
+            const regex = /^\s*\(\s*([a-zA-Z0-9_\+]+)\s*\,\s*([a-zA-Z0-9_\+]+)\s*\)\s*\=\s*\(\s*([a-zA-Z0-9_\+]+)\s*\,\s*([a-zA-Z0-9_\+]+)\s*\,\s*([L|R|l|r])\s*\)/
+
+            const linesPromise = file.text().then((text) => text.split("\n"))
+
+            linesPromise.then((lines) => {
+                const transicoes: Transicao[] = lines.flatMap((line, index) => {
+                    const match = line.match(regex)
+                    if (!match) {
+                        window.alert(`Erro na linha ${index + 1}: ${line}`)
+                        throw new Error(`Erro na linha ${index + 1}: ${line}`)
+                    }
+                    const [_, estadoOrigem, simboloLeitura, estadoDestino, simboloEscrita, movimento] = match
+
+                    if (simboloLeitura.length === 1) {
+                        const q1 = estadoOrigem
+                        const s1 = simboloLeitura === "_" ? ' ' : simboloLeitura
+                        const q2 = estadoDestino
+                        const s2 = simboloEscrita === "_" ? ' ' : simboloEscrita
+                        const mov: Movimento = movimento.toUpperCase() === "L" ? "Esquerda" : "Direita"
+    
+                        return [[q1, s1, q2, s2, mov]]
+                    } else if (simboloLeitura.length > 1) {
+                        const transicoes: Transicao[] = simboloLeitura.split("").map((s) => {
+                            const q1 = estadoOrigem
+                            const s1 = s === "_" ? ' ' : s
+                            const q2 = estadoDestino
+                            const s2 = s1
+                            const mov: Movimento = movimento.toUpperCase() === "L" ? "Esquerda" : "Direita"
+                            return [q1, s1, q2, s2, mov]
+                        })
+                        return transicoes
+                    } else {
+                        throw new Error("")
+                    }
+
+                })
+
+                transicoes.forEach(t => adicionarTransicao(t))
+            })
+        } else {
+            alert("Por favor, selecione um arquivo .txt.");
+        }
+    })
+
+    input.click()
+})
+
 botaoRemoverTransicao.addEventListener("click", () => {
     if (arrayTransicoes.length > 0) {
+        ulTransicoes.lastElementChild?.remove()
+        arrayTransicoes.pop()
+    }
+})
+
+botaoLimparTransicoes.addEventListener("click", () => {
+    while (arrayTransicoes.length > 0) {
         ulTransicoes.lastElementChild?.remove()
         arrayTransicoes.pop()
     }
